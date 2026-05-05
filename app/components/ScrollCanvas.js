@@ -115,12 +115,15 @@ export default function ScrollCanvas({ onSectionChange }) {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
 
-      if (imagesRef.current[currentFrameRef.current]) {
-        drawFrame(canvas, ctx, imagesRef.current[currentFrameRef.current]);
+      const cur = imagesRef.current[currentFrameRef.current];
+      if (cur && cur.complete && cur.naturalWidth > 0) {
+        drawFrame(canvas, ctx, cur);
       }
     }
 
     // تحميل الصور بطريقتين: أول مجموعة بسرعة (للعرض)، والباقي بالخلفية
+    // الفريمات قد تحتوي على فجوات (تم نقل ~25% منها لأرشيف خارجي لتقليل حجم Repo)
+    // نتعامل مع فشل التحميل بصمت، والـ tween يقفز على الفجوات تلقائياً
     async function preloadImages() {
       const images = [];
       let loaded = 0;
@@ -138,7 +141,8 @@ export default function ScrollCanvas({ onSectionChange }) {
             resolve();
           };
           img.onerror = () => {
-            console.warn(`فشل تحميل الفريم: ${i}`);
+            // الفريم محذوف عن قصد (موجود في _frames-archive) — نتجاهله بصمت
+            images[i - 1] = null;
             loaded++;
             setLoadingProgress(Math.round((loaded / TOTAL_FRAMES) * 100));
             resolve();
@@ -154,6 +158,23 @@ export default function ScrollCanvas({ onSectionChange }) {
       // الباقي يكمل بالخلفية
       Promise.all(promises).catch(() => {});
       return images;
+    }
+
+    // إيجاد أقرب فريم متاح (للتعامل مع الفريمات المنقولة للأرشيف)
+    function findAvailableImage(frameIndex) {
+      const imgs = imagesRef.current;
+      // البحث للأمام أولاً (الـ tween عادة يتقدم)
+      for (let offset = 0; offset < 5; offset++) {
+        const fwd = frameIndex + offset;
+        if (fwd < imgs.length && imgs[fwd] && imgs[fwd].complete && imgs[fwd].naturalWidth > 0) {
+          return imgs[fwd];
+        }
+        const bwd = frameIndex - offset;
+        if (bwd >= 0 && imgs[bwd] && imgs[bwd].complete && imgs[bwd].naturalWidth > 0) {
+          return imgs[bwd];
+        }
+      }
+      return null;
     }
 
     /**
@@ -184,15 +205,23 @@ export default function ScrollCanvas({ onSectionChange }) {
         ease: "power2.inOut",
         onUpdate: () => {
           const f = Math.round(animObj.frame);
-          if (f !== currentFrameRef.current && imagesRef.current[f]) {
-            currentFrameRef.current = f;
-            drawFrame(canvas, ctx, imagesRef.current[f]);
+          if (f !== currentFrameRef.current) {
+            const img = imagesRef.current[f] && imagesRef.current[f].complete && imagesRef.current[f].naturalWidth > 0
+              ? imagesRef.current[f]
+              : findAvailableImage(f); // fallback للفريمات المنقولة للأرشيف
+            if (img) {
+              currentFrameRef.current = f;
+              drawFrame(canvas, ctx, img);
+            }
           }
         },
         onComplete: () => {
           currentFrameRef.current = targetFrame;
-          if (imagesRef.current[targetFrame]) {
-            drawFrame(canvas, ctx, imagesRef.current[targetFrame]);
+          const img = imagesRef.current[targetFrame] && imagesRef.current[targetFrame].complete && imagesRef.current[targetFrame].naturalWidth > 0
+            ? imagesRef.current[targetFrame]
+            : findAvailableImage(targetFrame);
+          if (img) {
+            drawFrame(canvas, ctx, img);
           }
           // قفل لفترة قصيرة بعد نهاية الأنيميشن
           setTimeout(() => {
@@ -283,9 +312,12 @@ export default function ScrollCanvas({ onSectionChange }) {
       imagesRef.current = images;
       setIsLoaded(true);
 
-      // رسم أول فريم
-      if (images[0]) {
-        drawFrame(canvas, ctx, images[0]);
+      // رسم أول فريم (frame_001 = keyframe الأساسي للـ hero، مضمون موجود)
+      const firstImg = images[0] && images[0].complete && images[0].naturalWidth > 0
+        ? images[0]
+        : null;
+      if (firstImg) {
+        drawFrame(canvas, ctx, firstImg);
       }
 
       // 📌 تفعيل اختطاف السكرول
