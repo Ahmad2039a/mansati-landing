@@ -39,8 +39,8 @@ function getFrameSrc(frameNumber) {
    =====================================================
    إعدادات اختطاف السكرول
    ===================================================== */
-const ANIMATION_DURATION = 1.2;  // مدة الانتقال بين الأقسام (بالثواني)
-const COOLDOWN_MS = 1400;        // فترة القفل بعد كل انتقال (بالمللي ثانية)
+const ANIMATION_DURATION = 1.8;  // مدة الانتقال بين الأقسام (بالثواني) - أبطأ = أنعم
+const COOLDOWN_MS = 2000;        // فترة القفل بعد كل انتقال (بالمللي ثانية)
 
 export default function ScrollCanvas({ onSectionChange }) {
   const canvasRef = useRef(null);
@@ -202,7 +202,7 @@ export default function ScrollCanvas({ onSectionChange }) {
       tweenRef.current = gsap.to(animObj, {
         frame: targetFrame,
         duration: ANIMATION_DURATION,
-        ease: "power2.inOut",
+        ease: "power3.inOut", // أنعم وأسلس من power2
         onUpdate: () => {
           const f = Math.round(animObj.frame);
           if (f !== currentFrameRef.current) {

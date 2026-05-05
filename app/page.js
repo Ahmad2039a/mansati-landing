@@ -128,7 +128,7 @@ function SectionWrapper({ id, active, index, current, children }) {
           : current < index
           ? "translateY(30px) scale(0.985)"
           : "translateY(-30px) scale(0.985)",
-        transition: "opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)",
+        transition: "opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), transform 0.85s cubic-bezier(0.16, 1, 0.3, 1)",
         willChange: "transform, opacity", // إجبار الـ GPU على معالجة الانتقال
         pointerEvents: active ? "auto" : "none",
         overflowY: "auto",
